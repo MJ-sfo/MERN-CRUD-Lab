@@ -15,7 +15,13 @@ var port = process.env.API_PORT || 3001;
 
 //db config
 //ADD YOUR INFO HERE!
-mongoose.connect('mongodb://<dbuser>:<dbpassword>@ds115738.mlab.com:15738/mern-comment-box');
+var dbUser = process.env.MLAB_DBUSER;
+var dbPassword = process.env.MLAB_DBPASSWORD;
+
+var databaseUri = 'mongodb://' + dbUser + ':'
+                        + dbPassword + '@ds131621.mlab.com:31621/mern-comment-box'
+
+mongoose.connect(databaseUri);
 
 //config API to use bodyParser and look for JSON in req.body
 app.use(bodyParser.urlencoded({extended: true }));
@@ -46,9 +52,63 @@ router.route('/nuke').get(function(req,res){
 });
 
 //add /comments route to our /api router here
+router.route('/comments')
+  //retrieve all comments from the db
+  .get(function(req, res){
+    Comment.find(function(err,comments){
+      if(err)
+        res.send(err);
+      //responds with a json object of our database comments.
+      res.json(comments);
+    });
+  })
+
+  //post new comment to the db
+  .post(function(req, res){
+    var comment = new Comment();
+    //body parser lets us use the req.body
+    comment.author = req.body.author;
+    comment.text = req.body.text;
+
+    comment.save(function(err){
+      if(err)
+        res.send(err);
+      res.json(comment);
+
+    }) 
+  })
+
+router.route('/comments/:comment_id')
+//The put method gives us the chance to update our comment based on the ID passed to the route
+ .put(function(req, res) {
+   Comment.findById(req.params.comment_id, function(err, comment) {
+     if (err)
+       res.send(err);
+     //setting the new author and text to whatever was changed. If nothing was changed
+     // we will not alter the field.
+     (req.body.author) ? comment.author = req.body.author : null;
+     (req.body.text) ? comment.text = req.body.text : null;
+     //save comment
+     comment.save(function(err) {
+       if (err)
+         res.send(err);
+       res.json({ message: 'Comment has been updated' });
+     });
+   });
+ })
+ //delete method for removing a comment from our database
+ .delete(function(req, res) {
+   //selects the comment by its ID, then removes it.
+   Comment.remove({ _id: req.params.comment_id }, function(err, comment) {
+     if (err)
+       res.send(err);
+     res.json({ message: 'Comment has been deleted' })
+   })
+ });
+
 
 //use router config when we call /API
-app.use('/api', router);
+
 
 //start server
 app.listen(port, function() {
